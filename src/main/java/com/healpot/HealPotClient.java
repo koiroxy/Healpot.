@@ -1,10 +1,11 @@
+
 package com.healpot;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.options.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -16,6 +17,7 @@ import org.lwjgl.glfw.GLFW;
 public class HealPotClient implements ClientModInitializer {
 
     private KeyBinding healKey;
+    private int restoreTicks = -1;
 
     @Override
     public void onInitializeClient() {
@@ -30,8 +32,19 @@ public class HealPotClient implements ClientModInitializer {
         );
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player == null || client.world == null
-                    || client.currentScreen != null) return;
+
+            if (client.player == null || client.world == null) return;
+
+            if (restoreTicks >= 0) {
+                if (restoreTicks == 0) {
+                    client.player.inventory.selectedSlot = 0;
+                    restoreTicks = -1;
+                } else {
+                    restoreTicks--;
+                }
+            }
+
+            if (client.currentScreen != null || restoreTicks >= 0) return;
 
             if (healKey.wasPressed()) {
                 usePotion(client);
@@ -53,10 +66,12 @@ public class HealPotClient implements ClientModInitializer {
                     client.player.inventory.selectedSlot = slot;
 
                     client.interactionManager.interactItem(
-                        client.player, client.world, Hand.MAIN_HAND
+                        client.player,
+                        client.world,
+                        Hand.MAIN_HAND
                     );
 
-                    client.player.inventory.selectedSlot = 0;
+                    restoreTicks = 1;
                     return;
                 }
             }
